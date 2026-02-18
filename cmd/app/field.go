@@ -31,28 +31,57 @@ type Field struct {
 var shipSizes = []int{4, 3, 3, 2, 2, 2, 1, 1, 1, 1}
 var globalRand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
+var directions = [][]int{
+	{0, -1},
+	{1, 0},
+	{0, 1},
+	{-1, 0},
+}
+
 type PlaceRequest struct {
+	ShipSize int
     Dir   int
     Point Pair
+	Feedback chan bool
 }
 
 func Constructor() *Field {
-	return &Field{matrix: make([][]int, Size)}
+	m := make([][]int, Size)
+	for i := range m {
+        m[i] = make([]int, Size)
+    }
+	return &Field{matrix: m}
 }
 
-type PlacerFunc func(ship int) <-chan PlaceRequest
+type PlacerFunc func() <-chan PlaceRequest
 
-func RandomPlacer(ship int) <-chan PlaceRequest {
-    ch := make(chan PlaceRequest, 1)
-    ch <- PlaceRequest{
-        Dir:   globalRand.Intn(4),
-        Point: Pair{globalRand.Intn(10), globalRand.Intn(10)},
-    }
+func RandomPlacer() <-chan PlaceRequest {
+    ch := make(chan PlaceRequest)
+	go func() {
+		defer close(ch)
+		for i := 0; i < len(shipSizes); i++ {
+			feedback := make(chan bool)
+			for {
+				ch <- PlaceRequest{
+					ShipSize: shipSizes[i],
+					Dir:   globalRand.Intn(4),
+					Point: Pair{globalRand.Intn(10), globalRand.Intn(10)},
+					Feedback: feedback,
+				}
+				if check := <-feedback; check {
+					break
+				}
+			}
+		}
+	}()
+
+	// cansel channel if does not stop randomizing(no option for ship placing)
+    
     return ch
 }
 
 func UserPlacer(input <-chan PlaceRequest) PlacerFunc {
-    return func(ship int) <-chan PlaceRequest {
+    return func() <-chan PlaceRequest {
         return input
     }
 }
@@ -60,7 +89,7 @@ func UserPlacer(input <-chan PlaceRequest) PlacerFunc {
 func (f *Field) Validation(point Pair) bool {
 	for i := point.x - 1; i < point.x + 2; i++ {
 		for j := point.y - 1; j < point.y + 2; j++ {
-			if i < 0 || i > 9 || j < 0 || j > 9 {
+			if i < 0 || i >= Size || j < 0 || j >= Size {
 				continue
 			}
 			if f.matrix[i][j] == SHIP {
@@ -71,63 +100,16 @@ func (f *Field) Validation(point Pair) bool {
 	return true
 }
 
-func (f *Field) placeUp(ship int, point Pair) []Pair {
-    cells := make([]Pair, 0, ship)
-    for i := 0; i < ship; i++ {
-        p := Pair{point.x - i, point.y}
-        if !f.Validation(p) {
-            return nil
-        }
-        cells = append(cells, p)
-    }
-    return cells
-}
-
-func (f *Field) placeDown(ship int, point Pair) []Pair {
-	cells := make([]Pair, 0, ship)
-    for i := 0; i < ship; i++ {
-        p := Pair{point.x + i, point.y}
-        if !f.Validation(p) {
-            return nil
-        }
-        cells = append(cells, p)
-    }
-    return cells
-}
-func (f *Field) placeLeft(ship int, point Pair) []Pair {
-	cells := make([]Pair, 0, ship)
-    for i := 0; i < ship; i++ {
-        p := Pair{point.x, point.y - i}
-        if !f.Validation(p) {
-            return nil
-        }
-        cells = append(cells, p)
-    }
-    return cells
-}
-func (f *Field) placeRight(ship int, point Pair) []Pair {
-	cells := make([]Pair, 0, ship)
-    for i := 0; i < ship; i++ {
-        p := Pair{point.x, point.y + i}
-        if !f.Validation(p) {
-            return nil
-        }
-        cells = append(cells, p)
-    }
-    return cells
-}
-
 func (f *Field) PlaceShip(ship, dir int, point Pair) bool {
 	var cells []Pair
-    switch dir {
-	case 0:
-        cells = f.placeUp(ship, point)
-    case 1:
-        cells = f.placeRight(ship, point)
-    case 2:
-        cells = f.placeDown(ship, point)
-    default:
-        cells = f.placeLeft(ship, point)
+    myDir := directions[dir]
+
+	for i := 0; i < ship; i++ {
+        p := Pair{point.x + myDir[0] * i, point.y + myDir[1] * i}
+        if !f.Validation(p) {
+            return false
+        }
+        cells = append(cells, p)
     }
 
 	if cells == nil {
@@ -140,18 +122,19 @@ func (f *Field) PlaceShip(ship, dir int, point Pair) bool {
 }
 
 func (f *Field) BuildField(placer PlacerFunc, cancel <-chan struct{}) *Field {
-	for i := range f.matrix {
-        f.matrix[i] = make([]int, Size)
-    }
-
+	requests := placer()
 	for cnt := 0; cnt < len(shipSizes); {
-		ship := shipSizes[cnt]
-		requests := placer(ship)
 		select {
-        case req := <-requests:
-            if f.PlaceShip(ship, req.Dir, req.Point) {
+        case req, ok := <-requests:
+			if !ok {
+				return nil
+			}
+            if f.PlaceShip(req.ShipSize, req.Dir, req.Point) {
+				req.Feedback <- true
                 cnt++
-            }
+            } else {
+				req.Feedback <- false
+			}
         case <-cancel:
             return nil
         }
