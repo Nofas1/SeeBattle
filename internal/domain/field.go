@@ -1,4 +1,4 @@
-package app
+package domain
 
 import (
 	"time"
@@ -19,13 +19,22 @@ const (
 	FILL
 )
 
+type ShotResult int
+
+const (
+	Miss ShotResult = iota
+	Hit
+	Sink
+	Already
+)
+
 type Pair struct {
 	x int
 	y int
 }
 
 type Field struct {
-	matrix [][]int
+	Matrix [][]int
 }
 
 var shipSizes = []int{4, 3, 3, 2, 2, 2, 1, 1, 1, 1}
@@ -50,7 +59,7 @@ func Constructor() *Field {
 	for i := range m {
         m[i] = make([]int, Size)
     }
-	return &Field{matrix: m}
+	return &Field{Matrix: m}
 }
 
 type PlacerFunc func() <-chan PlaceRequest
@@ -72,6 +81,7 @@ func RandomPlacer() <-chan PlaceRequest {
 					break
 				}
 			}
+			close(feedback)
 		}
 	}()
 
@@ -87,12 +97,15 @@ func UserPlacer(input <-chan PlaceRequest) PlacerFunc {
 }
 
 func (f *Field) Validation(point Pair) bool {
+	if point.x < 0 || point.x >= Size || point.y < 0 || point.y >= Size {
+		return false
+	}
 	for i := point.x - 1; i < point.x + 2; i++ {
 		for j := point.y - 1; j < point.y + 2; j++ {
 			if i < 0 || i >= Size || j < 0 || j >= Size {
 				continue
 			}
-			if f.matrix[i][j] == SHIP {
+			if f.Matrix[i][j] == SHIP {
 				return false
 			}
 		}
@@ -116,12 +129,12 @@ func (f *Field) PlaceShip(ship, dir int, point Pair) bool {
         return false
     }
     for _, cell := range cells {
-        f.matrix[cell.x][cell.y] = SHIP
+        f.Matrix[cell.x][cell.y] = SHIP
     }
 	return true
 }
 
-func (f *Field) BuildField(placer PlacerFunc, cancel <-chan struct{}) *Field {
+func (f *Field) BuildField(placer PlacerFunc, cancel <-chan struct{}) error {
 	requests := placer()
 	for cnt := 0; cnt < len(shipSizes); {
 		select {
@@ -139,6 +152,17 @@ func (f *Field) BuildField(placer PlacerFunc, cancel <-chan struct{}) *Field {
             return nil
         }
 	}
+	return nil
+}
 
-	return f
+func (f *Field) Shoot(row, col int) ShotResult {
+	if f.Matrix[row][col] == SHOOTED || f.Matrix[row][col] == MISSED {
+		return Already
+	}
+	if f.Matrix[row][col] == SHIP {
+		f.Matrix[row][col] = SHOOTED
+		return Hit
+	}
+	f.Matrix[row][col] = MISSED
+	return Miss
 }
