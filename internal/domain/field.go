@@ -1,59 +1,5 @@
 package domain
 
-import (
-	"time"
-	"math/rand"
-)
-
-const (
-	Size = 10
-)
-
-type Cell int
-
-const (
-	EMPTY = iota
-	SHIP
-	SHOOTED
-	MISSED
-	FILL
-)
-
-type ShotResult int
-
-const (
-	Miss ShotResult = iota
-	Hit
-	Sink
-	Already
-)
-
-type Pair struct {
-	x int
-	y int
-}
-
-type Field struct {
-	Matrix [][]int
-}
-
-var shipSizes = []int{4, 3, 3, 2, 2, 2, 1, 1, 1, 1}
-var globalRand = rand.New(rand.NewSource(time.Now().UnixNano()))
-
-var directions = [][]int{
-	{0, -1},
-	{1, 0},
-	{0, 1},
-	{-1, 0},
-}
-
-type PlaceRequest struct {
-	ShipSize int
-    Dir   int
-    Point Pair
-	Feedback chan bool
-}
-
 func Constructor() *Field {
 	m := make([][]int, Size)
 	for i := range m {
@@ -68,11 +14,11 @@ func RandomPlacer() <-chan PlaceRequest {
     ch := make(chan PlaceRequest)
 	go func() {
 		defer close(ch)
-		for i := 0; i < len(shipSizes); i++ {
+		for i := 0; i < len(ShipSizes); i++ {
 			feedback := make(chan bool)
 			for {
 				ch <- PlaceRequest{
-					ShipSize: shipSizes[i],
+					ShipSize: ShipSizes[i],
 					Dir:   globalRand.Intn(4),
 					Point: Pair{globalRand.Intn(10), globalRand.Intn(10)},
 					Feedback: feedback,
@@ -97,11 +43,11 @@ func UserPlacer(input <-chan PlaceRequest) PlacerFunc {
 }
 
 func (f *Field) Validation(point Pair) bool {
-	if point.x < 0 || point.x >= Size || point.y < 0 || point.y >= Size {
+	if point.X < 0 || point.X >= Size || point.Y < 0 || point.Y >= Size {
 		return false
 	}
-	for i := point.x - 1; i < point.x + 2; i++ {
-		for j := point.y - 1; j < point.y + 2; j++ {
+	for i := point.X - 1; i < point.X + 2; i++ {
+		for j := point.Y - 1; j < point.Y + 2; j++ {
 			if i < 0 || i >= Size || j < 0 || j >= Size {
 				continue
 			}
@@ -115,10 +61,10 @@ func (f *Field) Validation(point Pair) bool {
 
 func (f *Field) PlaceShip(ship, dir int, point Pair) bool {
 	var cells []Pair
-    myDir := directions[dir]
+    myDir := Directions[dir]
 
 	for i := 0; i < ship; i++ {
-        p := Pair{point.x + myDir[0] * i, point.y + myDir[1] * i}
+        p := Pair{point.X + myDir[0] * i, point.Y + myDir[1] * i}
         if !f.Validation(p) {
             return false
         }
@@ -129,14 +75,14 @@ func (f *Field) PlaceShip(ship, dir int, point Pair) bool {
         return false
     }
     for _, cell := range cells {
-        f.Matrix[cell.x][cell.y] = SHIP
+        f.Matrix[cell.X][cell.Y] = SHIP
     }
 	return true
 }
 
 func (f *Field) BuildField(placer PlacerFunc, cancel <-chan struct{}) error {
 	requests := placer()
-	for cnt := 0; cnt < len(shipSizes); {
+	for cnt := 0; cnt < len(ShipSizes); {
 		select {
         case req, ok := <-requests:
 			if !ok {

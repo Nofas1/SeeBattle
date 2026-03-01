@@ -71,11 +71,68 @@ func UserShot() {}
 
 func BotShot() {}
 
-func Run(userField, botField *domain.Field) {
-	rl.InitWindow(HEIGHT, WIDTH, "Sea Battle")
-	defer rl.CloseWindow()
+func Placer(userField *domain.Field, cancel <-chan struct{}) {
+    ship_index := 0
+    dir := domain.Up
+    input := make(chan domain.PlaceRequest)
+    placed := make(chan bool)
 
-	for !rl.WindowShouldClose() {
+    go userField.BuildField(domain.UserPlacer(input), cancel)
+
+    for !rl.WindowShouldClose() && ship_index < len(domain.ShipSizes) {
+        
+		rl.BeginDrawing()
+		rl.ClearBackground(rl.RayWhite)
+
+		DrawGrid(userOffsetX, offsetY, userField.Matrix, false)
+
+        select {
+        case ok := <-placed:
+            if ok {
+                ship_index++
+            }
+        default:
+        }
+
+        if rl.IsMouseButtonPressed(rl.MouseButtonRight) {
+            dir = (dir + 1) % 4
+        }
+
+        mp := rl.GetMousePosition()
+        col := (int32(mp.X) - userOffsetX) / CELL
+        row := (int32(mp.Y) - offsetY) / CELL
+
+
+        if ship_index < len(domain.ShipSizes) {
+            pc, pr := col, row
+            for i := 0; i < domain.ShipSizes[ship_index]; i++ {
+                rl.DrawRectangle(userOffsetX + pc * CELL, offsetY + pr * CELL, CELL, CELL, rl.Fade(rl.Blue, 0.4))
+                pr += int32(domain.Directions[dir][0])
+                pc += int32(domain.Directions[dir][1])
+            }
+        }
+        
+
+		if rl.IsMouseButtonPressed(rl.MouseButtonLeft) {
+            feedback := make(chan bool)
+            req := domain.PlaceRequest{
+                ShipSize: domain.ShipSizes[ship_index],
+                Dir: dir,
+                Point: domain.Pair{X: int(row), Y: int(col)},
+                Feedback: feedback,
+            }
+            go func() {
+                input <- req
+                placed <- <-feedback
+            }()
+		}
+
+		rl.EndDrawing()
+	}
+}
+
+func Battle(userField, botField *domain.Field) {
+    for !rl.WindowShouldClose() {
 
 		rl.BeginDrawing()
 		rl.ClearBackground(rl.RayWhite)
@@ -94,4 +151,15 @@ func Run(userField, botField *domain.Field) {
 
 		rl.EndDrawing()
 	}
+}
+
+func Run(userField, botField *domain.Field) {
+	rl.InitWindow(HEIGHT, WIDTH, "Sea Battle")
+	defer rl.CloseWindow()
+
+    cancel := make(chan struct{})
+    defer close(cancel)
+
+    Placer(userField, cancel)
+    Battle(userField, botField)
 }
