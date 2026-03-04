@@ -101,14 +101,45 @@ func (f *Field) BuildField(placer PlacerFunc, cancel <-chan struct{}) error {
 	return nil
 }
 
+func (f *Field) IsSunk(row, col int) bool {
+	for _, d := range Directions {
+		newCol, newRow := row + d[1], row + d[0]
+		for newCol < 0 || newCol >= Size || newRow < 0 || newRow >= Size {
+			if f.Matrix[newRow][newCol] == SHIP {
+				return false
+			}
+			if f.Matrix[newRow][newCol] == EMPTY || f.Matrix[newRow][newCol] == MISSED {
+				break
+			}
+			newRow += d[0]
+			newCol += d[1]
+		}
+	}
+
+	return true
+}
+
 func (f *Field) Shoot(row, col int) ShotResult {
 	if f.Matrix[row][col] == SHOOTED || f.Matrix[row][col] == MISSED {
 		return Already
 	}
 	if f.Matrix[row][col] == SHIP {
 		f.Matrix[row][col] = SHOOTED
+		if f.IsSunk(row, col) {
+			return Sink
+		}
 		return Hit
 	}
 	f.Matrix[row][col] = MISSED
 	return Miss
+}
+
+func (f *Field) UserShoot(row, col int) ShotResult {
+	return f.Shoot(row, col)
+}
+
+func (f *Field) BotShoot() ShotResult {
+	target := Pair{globalRand.Intn(10), globalRand.Intn(10)}
+	row, col := target.Y, target.X
+	return f.Shoot(row, col)
 }

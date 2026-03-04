@@ -67,15 +67,11 @@ func DrawGrid(offsetX, offsetY int32, matrix [][]int, hideShips bool) {
 	}
 }
 
-func UserShot() {}
-
-func BotShot() {}
-
-func Placer(userField *domain.Field, cancel <-chan struct{}, music rl.Music) {
-	ship_index := 0
-	dir := domain.Up
-	input := make(chan domain.PlaceRequest)
-	placed := make(chan bool)
+func Placer(userField *domain.Field, cancel <-chan struct{}) {
+    ship_index := 0
+    dir := domain.Up
+    input := make(chan domain.PlaceRequest)
+    placed := make(chan bool)
 
 	go userField.BuildField(domain.UserPlacer(input), cancel)
 
@@ -130,12 +126,15 @@ func Placer(userField *domain.Field, cancel <-chan struct{}, music rl.Music) {
 }
 
 func Battle(userField, botField *domain.Field, music rl.Music) {
-
-	hit_sound := rl.LoadSound("sounds/hit.wav")
-	defer rl.UnloadSound(hit_sound)
-	rl.SetSoundVolume(hit_sound, 0.1)
-	for !rl.WindowShouldClose() {
-		rl.UpdateMusicStream(music)
+    // проверка убийства -> покрас всех на границе, 
+    user_sunk := 0
+    bot_sunk := 0
+    turn := true
+    hit_sound := rl.LoadSound("sounds/hit.wav")
+	  defer rl.UnloadSound(hit_sound)
+	  rl.SetSoundVolume(hit_sound, 0.1)
+    for !rl.WindowShouldClose() {
+        rl.UpdateMusicStream(music)
 
 		rl.BeginDrawing()
 		rl.ClearBackground(rl.RayWhite)
@@ -143,15 +142,40 @@ func Battle(userField, botField *domain.Field, music rl.Music) {
 		DrawGrid(userOffsetX, offsetY, userField.Matrix, false)
 		DrawGrid(botOffsetX, offsetY, botField.Matrix, true)
 
-		if rl.IsMouseButtonPressed(rl.MouseButtonLeft) {
+        if user_sunk == 10 {
+            break
+        }
+        if bot_sunk == 10 {
+            break
+        }
+
+		if rl.IsMouseButtonPressed(rl.MouseButtonLeft) && turn == true {
 			mp := rl.GetMousePosition()
 			col := (int32(mp.X) - botOffsetX) / CELL
 			row := (int32(mp.Y) - offsetY) / CELL
 			if col >= 0 && col < domain.Size && row >= 0 && row < domain.Size {
-				game.Shot(botField, int(row), int(col))
-				rl.PlaySound(hit_sound)
+				shotRes := game.UserShot(botField, int(row), int(col))
+        rl.PlaySound(hit_sound)
+                if shotRes == domain.Sink {
+                    turn = true
+                    bot_sunk++
+                } else if shotRes == domain.Hit {
+                    turn = true
+                } else {
+                    turn = false
+                }
 			}
-		}
+		} else if turn == false {
+            shotRes := game.BotShot(userField)
+            if shotRes == domain.Sink {
+                turn = false
+                user_sunk++
+            } else if shotRes == domain.Hit {
+                turn = false
+            } else {
+                turn = true
+            }
+        }
 
 		rl.EndDrawing()
 	}
