@@ -67,7 +67,7 @@ func DrawGrid(offsetX, offsetY int32, matrix [][]int, hideShips bool) {
 	}
 }
 
-func Placer(userField *domain.Field, cancel <-chan struct{}) {
+func Placer(userField *domain.Field, cancel <-chan struct{}, music rl.Music) {
     ship_index := 0
     dir := domain.Up
     input := make(chan domain.PlaceRequest)
@@ -131,8 +131,8 @@ func Battle(userField, botField *domain.Field, music rl.Music) {
     bot_sunk := 0
     turn := true
     hit_sound := rl.LoadSound("sounds/hit.wav")
-	  defer rl.UnloadSound(hit_sound)
-	  rl.SetSoundVolume(hit_sound, 0.1)
+	defer rl.UnloadSound(hit_sound)
+	rl.SetSoundVolume(hit_sound, 0.1)
     for !rl.WindowShouldClose() {
         rl.UpdateMusicStream(music)
 
@@ -155,7 +155,7 @@ func Battle(userField, botField *domain.Field, music rl.Music) {
 			row := (int32(mp.Y) - offsetY) / CELL
 			if col >= 0 && col < domain.Size && row >= 0 && row < domain.Size {
 				shotRes := game.UserShot(botField, int(row), int(col))
-        rl.PlaySound(hit_sound)
+                rl.PlaySound(hit_sound)
                 if shotRes == domain.Sink {
                     turn = true
                     bot_sunk++
