@@ -45,7 +45,7 @@ type Field struct {
 }
 
 var ShipSizes = []int{4, 3, 3, 2, 2, 2, 1, 1, 1, 1}
-var globalRand = rand.New(rand.NewSource(time.Now().UnixNano()))
+var GlobalRand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 var Directions = [][]int{
 	{0, -1},

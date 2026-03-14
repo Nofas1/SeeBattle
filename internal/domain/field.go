@@ -19,8 +19,8 @@ func RandomPlacer() <-chan PlaceRequest {
 			for {
 				ch <- PlaceRequest{
 					ShipSize: ShipSizes[i],
-					Dir:   globalRand.Intn(4),
-					Point: Pair{globalRand.Intn(10), globalRand.Intn(10)},
+					Dir:   GlobalRand.Intn(4),
+					Point: Pair{GlobalRand.Intn(10), GlobalRand.Intn(10)},
 					Feedback: feedback,
 				}
 				if check := <-feedback; check {
@@ -30,9 +30,6 @@ func RandomPlacer() <-chan PlaceRequest {
 			close(feedback)
 		}
 	}()
-
-	// cansel channel if does not stop randomizing(no option for ship placing)
-    
     return ch
 }
 
@@ -101,10 +98,37 @@ func (f *Field) BuildField(placer PlacerFunc, cancel <-chan struct{}) error {
 	return nil
 }
 
+func (f *Field) FillSunkArea(row, col int) {
+    shipCells := []Pair{{X: row, Y: col}}
+    for _, d := range Directions {
+        newRow, newCol := row + d[0], col + d[1]
+        for newRow >= 0 && newRow < Size && newCol >= 0 && newCol < Size {
+            if f.Matrix[newRow][newCol] != SHOOTED {
+                break
+            }
+            shipCells = append(shipCells, Pair{X: newRow, Y: newCol})
+            newRow += d[0]
+            newCol += d[1]
+        }
+    }
+
+    for _, cell := range shipCells {
+        for i := cell.X - 1; i <= cell.X + 1; i++ {
+            for j := cell.Y - 1; j <= cell.Y + 1; j++ {
+                if i >= 0 && i < Size && j >= 0 && j < Size {
+                    if f.Matrix[i][j] == EMPTY {
+                        f.Matrix[i][j] = FILL
+                    }
+                }
+            }
+        }
+    }
+}
+
 func (f *Field) IsSunk(row, col int) bool {
 	for _, d := range Directions {
-		newCol, newRow := row + d[1], row + d[0]
-		for newCol < 0 || newCol >= Size || newRow < 0 || newRow >= Size {
+		newRow, newCol := row + d[0], col + d[1]
+		for newCol < Size && newCol >= 0 && newRow < Size && newRow >= 0 {
 			if f.Matrix[newRow][newCol] == SHIP {
 				return false
 			}
@@ -120,12 +144,13 @@ func (f *Field) IsSunk(row, col int) bool {
 }
 
 func (f *Field) Shoot(row, col int) ShotResult {
-	if f.Matrix[row][col] == SHOOTED || f.Matrix[row][col] == MISSED {
+	if f.Matrix[row][col] == SHOOTED || f.Matrix[row][col] == MISSED || f.Matrix[row][col] == FILL {
 		return Already
 	}
 	if f.Matrix[row][col] == SHIP {
 		f.Matrix[row][col] = SHOOTED
 		if f.IsSunk(row, col) {
+			f.FillSunkArea(row, col)
 			return Sink
 		}
 		return Hit
@@ -139,7 +164,11 @@ func (f *Field) UserShoot(row, col int) ShotResult {
 }
 
 func (f *Field) BotShoot() ShotResult {
-	target := Pair{globalRand.Intn(10), globalRand.Intn(10)}
-	row, col := target.Y, target.X
-	return f.Shoot(row, col)
+	for {
+		target := Pair{GlobalRand.Intn(10), GlobalRand.Intn(10)}
+		row, col := target.Y, target.X
+		if f.Matrix[row][col] == EMPTY || f.Matrix[row][col] == SHIP {
+			return f.Shoot(row, col)
+		}
+	}
 }

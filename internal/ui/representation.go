@@ -47,9 +47,11 @@ func DrawGrid(offsetX, offsetY int32, matrix [][]int, hideShips bool) {
 					color = rl.Gray
 				}
 			case domain.SHOOTED:
-				color = rl.Red
+				color = rl.Fade(rl.Red, 0.8)
 			case domain.MISSED:
-				color = rl.Blue
+				color = rl.Fade(rl.Blue, 0.5)
+			case domain.FILL:
+				color = rl.Fade(rl.Blue, 0.5)
 			}
 
 			rl.DrawRectangleRec(rect, color)
@@ -91,7 +93,7 @@ func Placer(userField *domain.Field, cancel <-chan struct{}, music rl.Music) {
 		}
 
 		if rl.IsMouseButtonPressed(rl.MouseButtonRight) {
-			dir = (dir + 1) % 4
+			dir = (dir + 1) % 2
 		}
 
 		mp := rl.GetMousePosition()
@@ -126,7 +128,6 @@ func Placer(userField *domain.Field, cancel <-chan struct{}, music rl.Music) {
 }
 
 func Battle(userField, botField *domain.Field, music rl.Music) {
-    // проверка убийства -> покрас всех на границе, 
     user_sunk := 0
     bot_sunk := 0
     turn := true
@@ -155,26 +156,31 @@ func Battle(userField, botField *domain.Field, music rl.Music) {
 			row := (int32(mp.Y) - offsetY) / CELL
 			if col >= 0 && col < domain.Size && row >= 0 && row < domain.Size {
 				shotRes := game.UserShot(botField, int(row), int(col))
-                rl.PlaySound(hit_sound)
-                if shotRes == domain.Sink {
-                    turn = true
-                    bot_sunk++
-                } else if shotRes == domain.Hit {
-                    turn = true
-                } else {
-                    turn = false
-                }
+				if shotRes != domain.Already {
+					rl.PlaySound(hit_sound)
+					if shotRes == domain.Sink {
+						turn = true
+						bot_sunk++
+					} else if shotRes == domain.Hit {
+						turn = true
+					} else {
+						turn = false
+					}
+				}
 			}
 		} else if turn == false {
-            shotRes := game.BotShot(userField)
-            if shotRes == domain.Sink {
-                turn = false
-                user_sunk++
-            } else if shotRes == domain.Hit {
-                turn = false
-            } else {
-                turn = true
-            }
+			shotRes := game.BotShot(userField)
+			if shotRes != domain.Already {
+				rl.PlaySound(hit_sound)
+				if shotRes == domain.Sink {
+					turn = false
+					user_sunk++
+				} else if shotRes == domain.Hit {
+					turn = false
+				} else {
+					turn = true
+				}
+			}
         }
 
 		rl.EndDrawing()
