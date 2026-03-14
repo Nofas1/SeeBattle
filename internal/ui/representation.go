@@ -67,7 +67,7 @@ func DrawGrid(offsetX, offsetY int32, matrix [][]int, hideShips bool) {
 	}
 }
 
-func Placer(userField *domain.Field, cancel <-chan struct{}) {
+func Placer(userField *domain.Field, cancel <-chan struct{}, ) {
     ship_index := 0
     dir := domain.Up
     input := make(chan domain.PlaceRequest)
