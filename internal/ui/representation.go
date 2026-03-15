@@ -3,8 +3,8 @@ package ui
 import (
 	"sea_battle/internal/domain"
 	"sea_battle/internal/game"
+	"sea_battle/internal/bot"
 
-	//   "sea_battle/internal/game"
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
@@ -15,15 +15,72 @@ const (
 
 	PADDING = 40
 	GRID    = CELL * 10
-	WIDTH   = GRID + PADDING*2
-	HEIGHT  = GRID*2 + PADDING*3
+	WIDTH   = GRID + PADDING * 2
+	HEIGHT  = GRID * 2 + PADDING * 3
 )
 
 const (
 	userOffsetX = int32(PADDING)
-	botOffsetX  = int32(PADDING*2 + GRID)
+	botOffsetX  = int32(PADDING * 2 + GRID)
 	offsetY     = int32(PADDING)
 )
+
+func SelectBot(userField *domain.Field, music rl.Music) game.Bot {
+	buttons := []struct {
+		label string
+		rect  rl.Rectangle
+	}{
+		{"Simple Bot", rl.Rectangle{X: float32(WIDTH / 2 - 150), Y: 200, Width: 300, Height: 60}},
+		{"Smart Bot",  rl.Rectangle{X: float32(WIDTH / 2 - 150), Y: 300, Width: 300, Height: 60}},
+		// {"AI Bot",     rl.Rectangle{X: float32(WIDTH/2 - 150), Y: 400, Width: 300, Height: 60}},
+	}
+
+	for !rl.WindowShouldClose() {
+		rl.UpdateMusicStream(music)
+		rl.BeginDrawing()
+		rl.ClearBackground(rl.RayWhite)
+
+		rl.DrawText("SEA BATTLE", int32(WIDTH / 2 - 100), 80, 40, rl.DarkBlue)
+		rl.DrawText("Choose your opponent:", int32(WIDTH / 2 - 130), 155, 20, rl.Gray)
+
+		mp := rl.GetMousePosition()
+		clicked := rl.IsMouseButtonPressed(rl.MouseButtonLeft)
+
+		for _, btn := range buttons {
+			hovered := rl.CheckCollisionPointRec(mp, btn.rect)
+
+			color := rl.LightGray
+			if hovered {
+				color = rl.SkyBlue
+			}
+
+			rl.DrawRectangleRec(btn.rect, color)
+			rl.DrawRectangleLinesEx(btn.rect, 2, rl.DarkBlue)
+
+			textW := rl.MeasureText(btn.label, 24)
+			rl.DrawText(
+				btn.label,
+				int32(btn.rect.X) + int32(btn.rect.Width) / 2 - textW / 2,
+				int32(btn.rect.Y) + int32(btn.rect.Height) / 2 - 12,
+				24, rl.DarkBlue,
+			)
+
+			if hovered && clicked {
+				switch btn.label {
+				case "Simple Bot":
+					return bot.NewSimpleBot(userField)
+				case "Smart Bot":
+					return bot.NewSmartBot(userField)
+				// case "AI Bot":
+				// 	return bot.NewAIBot(userField)
+				}
+			}
+		}
+
+		rl.EndDrawing()
+	}
+	return bot.NewSimpleBot(userField)
+}
 
 func DrawGrid(offsetX, offsetY int32, matrix [][]int, hideShips bool) {
 	for i := int32(0); i < 10; i++ {
@@ -127,7 +184,7 @@ func Placer(userField *domain.Field, cancel <-chan struct{}, music rl.Music) {
 	}
 }
 
-func Battle(userField, botField *domain.Field, music rl.Music) {
+func Battle(userField, botField *domain.Field, bot game.Bot, music rl.Music) {
     user_sunk := 0
     bot_sunk := 0
     turn := true
@@ -169,7 +226,8 @@ func Battle(userField, botField *domain.Field, music rl.Music) {
 				}
 			}
 		} else if turn == false {
-			shotRes := game.BotShot(userField)
+			// timeout
+			shotRes := game.BotShot(bot)
 			if shotRes != domain.Already {
 				rl.PlaySound(hit_sound)
 				if shotRes == domain.Sink {
@@ -199,6 +257,9 @@ func Run(userField, botField *domain.Field) {
 	defer rl.UnloadMusicStream(music)
 	rl.SetMusicVolume(music, 0.1)
 	rl.PlayMusicStream(music)
+
+	bot := SelectBot(userField, music)
+
 	Placer(userField, cancel, music)
-	Battle(userField, botField, music)
+	Battle(userField, botField, bot, music)
 }

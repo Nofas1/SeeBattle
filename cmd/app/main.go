@@ -2,7 +2,6 @@ package main
 
 import (
   "sea_battle/internal/domain"
-  // "sea_battle/internal/game"
   "sea_battle/internal/ui"
 )
 

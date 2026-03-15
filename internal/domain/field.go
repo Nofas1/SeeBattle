@@ -142,33 +142,3 @@ func (f *Field) IsSunk(row, col int) bool {
 
 	return true
 }
-
-func (f *Field) Shoot(row, col int) ShotResult {
-	if f.Matrix[row][col] == SHOOTED || f.Matrix[row][col] == MISSED || f.Matrix[row][col] == FILL {
-		return Already
-	}
-	if f.Matrix[row][col] == SHIP {
-		f.Matrix[row][col] = SHOOTED
-		if f.IsSunk(row, col) {
-			f.FillSunkArea(row, col)
-			return Sink
-		}
-		return Hit
-	}
-	f.Matrix[row][col] = MISSED
-	return Miss
-}
-
-func (f *Field) UserShoot(row, col int) ShotResult {
-	return f.Shoot(row, col)
-}
-
-func (f *Field) BotShoot() ShotResult {
-	for {
-		target := Pair{GlobalRand.Intn(10), GlobalRand.Intn(10)}
-		row, col := target.Y, target.X
-		if f.Matrix[row][col] == EMPTY || f.Matrix[row][col] == SHIP {
-			return f.Shoot(row, col)
-		}
-	}
-}
