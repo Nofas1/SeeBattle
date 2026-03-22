@@ -31,6 +31,10 @@ func UserShot(field *domain.Field, row, col int) domain.ShotResult {
 
 func BotShot(bot Bot) domain.ShotResult {
 	shot := bot.Shoot()
+	if shot.X == 11 && shot.Y == 11 {
+		shot.X = 5
+		shot.Y = 5
+	}
 	shotRes := Shoot(bot.Getter(), shot.X, shot.Y)
 	bot.SetResult(shotRes)
 	return shotRes

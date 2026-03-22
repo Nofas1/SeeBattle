@@ -17,7 +17,7 @@ func NewSimpleBot(field *domain.Field) *SimpleBot {
 func (sb *SimpleBot) Shoot() domain.Pair {
 	for {
 		target := domain.Pair{X: domain.GlobalRand.Intn(10), Y: domain.GlobalRand.Intn(10)}
-		row, col := target.Y, target.X
+		row, col := target.X, target.Y
 		if sb.field.Matrix[row][col] == domain.EMPTY || sb.field.Matrix[row][col] == domain.SHIP {
 			return target
 		}

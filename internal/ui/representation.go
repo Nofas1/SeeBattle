@@ -30,9 +30,9 @@ func SelectBot(userField *domain.Field, music rl.Music) game.Bot {
 		label string
 		rect  rl.Rectangle
 	}{
-		{"Simple Bot", rl.Rectangle{X: float32(WIDTH / 2 - 150), Y: 200, Width: 300, Height: 60}},
-		{"Smart Bot",  rl.Rectangle{X: float32(WIDTH / 2 - 150), Y: 300, Width: 300, Height: 60}},
-		// {"AI Bot",     rl.Rectangle{X: float32(WIDTH/2 - 150), Y: 400, Width: 300, Height: 60}},
+		{"Simple Bot", rl.Rectangle{X: float32(WIDTH / 2 - 100), Y: 200, Width: 300, Height: 60}},
+		{"Smart Bot",  rl.Rectangle{X: float32(WIDTH / 2 - 100), Y: 300, Width: 300, Height: 60}},
+		{"AI Bot",     rl.Rectangle{X: float32(WIDTH / 2 - 100), Y: 400, Width: 300, Height: 60}},
 	}
 
 	for !rl.WindowShouldClose() {
@@ -41,7 +41,7 @@ func SelectBot(userField *domain.Field, music rl.Music) game.Bot {
 		rl.ClearBackground(rl.RayWhite)
 
 		rl.DrawText("SEA BATTLE", int32(WIDTH / 2 - 100), 80, 40, rl.DarkBlue)
-		rl.DrawText("Choose your opponent:", int32(WIDTH / 2 - 130), 155, 20, rl.Gray)
+		rl.DrawText("Choose your opponent:", int32(WIDTH / 2 - 100), 160, 20, rl.Gray)
 
 		mp := rl.GetMousePosition()
 		clicked := rl.IsMouseButtonPressed(rl.MouseButtonLeft)
@@ -71,8 +71,8 @@ func SelectBot(userField *domain.Field, music rl.Music) game.Bot {
 					return bot.NewSimpleBot(userField)
 				case "Smart Bot":
 					return bot.NewSmartBot(userField)
-				// case "AI Bot":
-				// 	return bot.NewAIBot(userField)
+				case "AI Bot":
+					return bot.NewAIBot(userField)
 				}
 			}
 		}
@@ -120,7 +120,7 @@ func DrawGrid(offsetX, offsetY int32, matrix [][]int, hideShips bool) {
 		mp := rl.GetMousePosition()
 		col := (int32(mp.X) - offsetX) / CELL
 		row := (int32(mp.Y) - offsetY) / CELL
-		if col > 0 && col < domain.Size && row > 0 && row < domain.Size {
+		if col >= 0 && col < domain.Size && row >= 0 && row < domain.Size {
 			rl.DrawRectangle(offsetX+col*CELL, offsetY+row*CELL, CELL, CELL, rl.Fade(rl.Red, 0.5))
 		}
 	}

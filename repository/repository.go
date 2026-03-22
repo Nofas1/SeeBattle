@@ -6,13 +6,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type Repo struct{
+type Repo struct {
 	pool *pgxpool.Pool
 }
 
 type PlayerStats struct {
-	Name string
-	Wins int
+	Name   string
+	Wins   int
 	Losses int
 }
 
